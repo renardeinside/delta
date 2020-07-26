@@ -80,6 +80,8 @@ statement
         (LIMIT limit=INTEGER_VALUE)?                                    #describeDeltaHistory
     | CONVERT TO DELTA table=qualifiedName
         (PARTITIONED BY '(' colTypeList ')')?                           #convert
+    | CREATE INDEX ON (path=STRING | table=qualifiedName)
+        (indexColumnName=STRING)                                        #createIndex
     | .*?                                                               #passThrough
     ;
 
@@ -151,6 +153,9 @@ RETAIN: 'RETAIN';
 RUN: 'RUN';
 TO: 'TO';
 VACUUM: 'VACUUM';
+CREATE: 'CREATE';
+INDEX: 'INDEX';
+ON: 'ON';
 
 STRING
     : '\'' ( ~('\''|'\\') | ('\\' .) )* '\''

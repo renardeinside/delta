@@ -40,24 +40,23 @@ package io.delta.sql.parser
 
 import java.util.Locale
 
-import scala.collection.JavaConverters._
-
-import org.apache.spark.sql.delta.commands._
 import io.delta.sql.parser.DeltaSqlBaseParser._
 import io.delta.tables.execution.VacuumTableCommand
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
 import org.antlr.v4.runtime.tree._
-
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
-import org.apache.spark.sql.catalyst.parser.{ParseErrorListener, ParseException, ParserInterface}
 import org.apache.spark.sql.catalyst.parser.ParserUtils.{string, withOrigin}
+import org.apache.spark.sql.catalyst.parser.{ParseErrorListener, ParseException, ParserInterface}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
+import org.apache.spark.sql.delta.commands._
 import org.apache.spark.sql.types._
+
+import scala.collection.JavaConverters._
 
 /**
  * A SQL parser that tries to parse Delta commands. If failng to parse the SQL text, it will
@@ -126,7 +125,7 @@ class DeltaSqlParser(val delegate: ParserInterface) extends ParserInterface {
   override def parseFunctionIdentifier(sqlText: String): FunctionIdentifier =
     delegate.parseFunctionIdentifier(sqlText)
 
-  override def parseMultipartIdentifier (sqlText: String): Seq[String] =
+  override def parseMultipartIdentifier(sqlText: String): Seq[String] =
     delegate.parseMultipartIdentifier(sqlText)
 
   override def parseTableSchema(sqlText: String): StructType = delegate.parseTableSchema(sqlText)
@@ -158,14 +157,14 @@ class DeltaSqlAstBuilder extends DeltaSqlBaseBaseVisitor[AnyRef] {
   }
 
   override def visitDescribeDeltaDetail(
-      ctx: DescribeDeltaDetailContext): LogicalPlan = withOrigin(ctx) {
+                                         ctx: DescribeDeltaDetailContext): LogicalPlan = withOrigin(ctx) {
     DescribeDeltaDetailCommand(
       Option(ctx.path).map(string),
       Option(ctx.table).map(visitTableIdentifier))
   }
 
   override def visitDescribeDeltaHistory(
-      ctx: DescribeDeltaHistoryContext): LogicalPlan = withOrigin(ctx) {
+                                          ctx: DescribeDeltaHistoryContext): LogicalPlan = withOrigin(ctx) {
     DescribeDeltaHistoryCommand(
       Option(ctx.path).map(string),
       Option(ctx.table).map(visitTableIdentifier),
@@ -183,6 +182,14 @@ class DeltaSqlAstBuilder extends DeltaSqlBaseBaseVisitor[AnyRef] {
       visitTableIdentifier(ctx.table),
       Option(ctx.colTypeList).map(colTypeList => StructType(visitColTypeList(colTypeList))),
       None)
+  }
+
+  override def visitCreateIndex(ctx: CreateIndexContext): LogicalPlan = withOrigin(ctx) {
+    CreateIndexCommand(
+      Option(ctx.path).map(string),
+      Option(ctx.table).map(visitTableIdentifier),
+      ctx.indexColumnName.getText
+    )
   }
 
   override def visitSingleStatement(ctx: SingleStatementContext): LogicalPlan = withOrigin(ctx) {
@@ -263,11 +270,17 @@ class DeltaSqlAstBuilder extends DeltaSqlBaseBaseVisitor[AnyRef] {
 // scalastyle:on
 class UpperCaseCharStream(wrapped: CodePointCharStream) extends CharStream {
   override def consume(): Unit = wrapped.consume
+
   override def getSourceName(): String = wrapped.getSourceName
+
   override def index(): Int = wrapped.index
+
   override def mark(): Int = wrapped.mark
+
   override def release(marker: Int): Unit = wrapped.release(marker)
+
   override def seek(where: Int): Unit = wrapped.seek(where)
+
   override def size(): Int = wrapped.size
 
   override def getText(interval: Interval): String = {
@@ -314,9 +327,9 @@ case object PostProcessor extends DeltaSqlBaseBaseListener {
   }
 
   private def replaceTokenByIdentifier(
-    ctx: ParserRuleContext,
-    stripMargins: Int)(
-    f: CommonToken => CommonToken = identity): Unit = {
+                                        ctx: ParserRuleContext,
+                                        stripMargins: Int)(
+                                        f: CommonToken => CommonToken = identity): Unit = {
     val parent = ctx.getParent
     parent.removeLastChild()
     val token = ctx.getChild(0).getPayload.asInstanceOf[Token]
